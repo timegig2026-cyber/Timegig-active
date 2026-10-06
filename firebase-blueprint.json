@@ -19,6 +19,21 @@
         "maxTenants": { "type": "integer" },
         "maxSubscribers": { "type": "integer" }
       }
+    },
+    "gig": {
+      "title": "Gig",
+      "description": "Active gig hiring requests and live navigation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "seekerId": { "type": "string" },
+        "seekerEmail": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "destinationAddress": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined", "completed", "cancelled"] }
+      },
+      "required": ["id", "seekerId", "customerId", "status"]
     }
   },
   "firestore": {
@@ -29,6 +44,10 @@
     "/settings/{settingsId}": {
       "schema": { "$ref": "settings" },
       "description": "Platform global settings"
+    },
+    "/gigs/{gigId}": {
+      "schema": { "$ref": "gig" },
+      "description": "Live gigs and hire requests"
     }
   }
 }
