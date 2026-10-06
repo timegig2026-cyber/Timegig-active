@@ -1,0 +1,34 @@
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "termsAccepted": { "type": "boolean" }
+      },
+      "required": ["uid", "email", "termsAccepted"]
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Platform settings and spot limits",
+      "type": "object",
+      "properties": {
+        "maxTenants": { "type": "integer" },
+        "maxSubscribers": { "type": "integer" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "user" },
+      "description": "User profiles"
+    },
+    "/settings/{settingsId}": {
+      "schema": { "$ref": "settings" },
+      "description": "Platform global settings"
+    }
+  }
+}
