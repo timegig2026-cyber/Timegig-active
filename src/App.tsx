@@ -1965,13 +1965,24 @@ function GiGsMap({
   // Fetch only real registered users from Firestore
   useEffect(() => {
     if (!backgroundMode) {
-      getDocs(collection(db, 'users')).then(snap => {
-        const list: any[] = [];
-        snap.forEach(d => {
-          list.push({ id: d.id, ...d.data() });
+      const loadUsers = (retry = 0) => {
+        getDocs(collection(db, 'users')).then(snap => {
+          const list: any[] = [];
+          snap.forEach(d => {
+            list.push({ id: d.id, ...d.data() });
+          });
+          setRealUsers(list);
+        }).catch((e: any) => {
+          if (e?.message?.includes('offline') || e?.code === 'unavailable') {
+            if (retry < 3) {
+              setTimeout(() => loadUsers(retry + 1), 1200);
+            }
+          } else {
+            console.error('Error fetching real users for map:', e);
+          }
         });
-        setRealUsers(list);
-      }).catch(e => console.error('Error fetching real users for map:', e));
+      };
+      loadUsers();
     }
   }, [backgroundMode]);
 
@@ -2726,17 +2737,27 @@ function Seekers({ onHireSeeker }: { onHireSeeker?: (seeker: any) => void }) {
   const [selectedSeeker, setSelectedSeeker] = useState<any | null>(null);
 
   useEffect(() => {
-    getDocs(collection(db, 'users')).then(snap => {
-      const list: any[] = [];
-      snap.forEach(d => {
-        list.push({ id: d.id, ...d.data() });
+    const loadSeekers = (retry = 0) => {
+      getDocs(collection(db, 'users')).then(snap => {
+        const list: any[] = [];
+        snap.forEach(d => {
+          list.push({ id: d.id, ...d.data() });
+        });
+        setSeekers(list);
+        setLoading(false);
+      }).catch((e: any) => {
+        if (e?.message?.includes('offline') || e?.code === 'unavailable') {
+          if (retry < 3) {
+            setTimeout(() => loadSeekers(retry + 1), 1200);
+            return;
+          }
+        } else {
+          console.error('Error loading seekers:', e);
+        }
+        setLoading(false);
       });
-      setSeekers(list);
-      setLoading(false);
-    }).catch(e => {
-      console.error('Error loading seekers:', e);
-      setLoading(false);
-    });
+    };
+    loadSeekers();
   }, []);
 
   // Show only seekers who are ready to be hired
@@ -3367,7 +3388,7 @@ function Dashboard() {
 
   const isAdmin = user?.email === 'timegig2026@gmail.com';
 
-  const syncUserStep = async () => {
+  const syncUserStep = async (retry = 0) => {
     if (user) {
       try {
         const snap = await getDoc(doc(db, 'users', user.uid));
@@ -3418,8 +3439,14 @@ function Dashboard() {
           await setDoc(doc(db, 'users', user.uid), defaultDoc, { merge: true });
           setUserData(defaultDoc);
         }
-      } catch (e) {
-        console.error(e);
+      } catch (e: any) {
+        if (e?.message?.includes('offline') || e?.code === 'unavailable') {
+          if (retry < 3) {
+            setTimeout(() => syncUserStep(retry + 1), 1200);
+          }
+        } else {
+          console.error('syncUserStep error:', e);
+        }
       }
     }
   };
@@ -3447,7 +3474,7 @@ function Dashboard() {
     }
   };
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = async (retry = 0) => {
     if (!user) return;
     try {
       const snap = await getDocs(collection(db, 'users'));
@@ -3474,8 +3501,14 @@ function Dashboard() {
       setReviewCount(review);
       setTenantPopCount(tenants);
       setUserPopCount(usersSub);
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      if (e?.message?.includes('offline') || e?.code === 'unavailable') {
+        if (retry < 3) {
+          setTimeout(() => fetchDashboardStats(retry + 1), 1200);
+        }
+      } else {
+        console.error('fetchDashboardStats error:', e);
+      }
     }
   };
 
@@ -3483,25 +3516,36 @@ function Dashboard() {
   useEffect(() => {
     if (user) {
       syncUserStep();
-      getDoc(doc(db, 'settings', 'limits')).then(snap => {
-        if (snap.exists()) {
-          const d = snap.data();
-          if (d.maxTenants !== undefined) {
-            setMaxTenants(d.maxTenants);
-            setMaxTenantsInput(d.maxTenants);
+      const loadLimits = (retry = 0) => {
+        getDoc(doc(db, 'settings', 'limits')).then(snap => {
+          if (snap.exists()) {
+            const d = snap.data();
+            if (d.maxTenants !== undefined) {
+              setMaxTenants(d.maxTenants);
+              setMaxTenantsInput(d.maxTenants);
+            }
+            if (d.maxSubscribers !== undefined) {
+              setMaxSubscribers(d.maxSubscribers);
+              setMaxSubscribersInput(d.maxSubscribers);
+            }
+            if (d.defaultSubFee !== undefined) {
+              setDefaultSubFeeInput(d.defaultSubFee);
+            }
+            if (d.defaultTrialDays !== undefined) {
+              setDefaultTrialDaysInput(d.defaultTrialDays);
+            }
           }
-          if (d.maxSubscribers !== undefined) {
-            setMaxSubscribers(d.maxSubscribers);
-            setMaxSubscribersInput(d.maxSubscribers);
+        }).catch((e: any) => {
+          if (e?.message?.includes('offline') || e?.code === 'unavailable') {
+            if (retry < 3) {
+              setTimeout(() => loadLimits(retry + 1), 1200);
+            }
+          } else {
+            console.error('Error loading settings:', e);
           }
-          if (d.defaultSubFee !== undefined) {
-            setDefaultSubFeeInput(d.defaultSubFee);
-          }
-          if (d.defaultTrialDays !== undefined) {
-            setDefaultTrialDaysInput(d.defaultTrialDays);
-          }
-        }
-      }).catch(e => console.error('Error loading settings:', e));
+        });
+      };
+      loadLimits();
     }
   }, [user]);
 
@@ -3830,7 +3874,7 @@ function Dashboard() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col bg-white ${activeTab === 'GiGs' && activeGig ? 'pb-0' : 'pb-16'} relative overflow-hidden`}>
+    <div className={`min-h-screen min-h-[100dvh] flex flex-col bg-white ${activeTab === 'GiGs' && activeGig ? 'pb-0' : 'pb-20'} relative overflow-x-hidden w-full`}>
       {/* Blurred Map Wallpaper in all features except GiGs */}
       {activeTab !== 'GiGs' && (
         <div className="absolute inset-0 z-0 filter blur-md opacity-30 pointer-events-none select-none">
@@ -4676,7 +4720,7 @@ function Dashboard() {
 
       {/* Crystal Clear Bottom Navigation Bar (Hidden during active live map navigation) */}
       {!(activeTab === 'GiGs' && activeGig) && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white/98 backdrop-blur-md border-t-2 border-slate-200 p-2 flex justify-around z-40 shadow-lg animate-slide-up">
+        <nav className="fixed bottom-0 left-0 right-0 bg-white/98 backdrop-blur-md border-t-2 border-slate-200 p-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] flex justify-around z-40 shadow-lg animate-slide-up">
           {navItems.map(item => {
             const isActive = activeTab === item.name;
             return (

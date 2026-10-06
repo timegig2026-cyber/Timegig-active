@@ -5,9 +5,9 @@ import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 
-// Use initializeFirestore with experimentalAutoDetectLongPolling to bypass websocket proxy restrictions in the sandboxed preview environment
+// Use initializeFirestore with experimentalForceLongPolling to bypass websocket proxy and sandbox iframe restrictions
 export const db = initializeFirestore(app, {
-  experimentalAutoDetectLongPolling: true,
+  experimentalForceLongPolling: true,
 }, firebaseConfig.firestoreDatabaseId);
 
 export const auth = getAuth();
